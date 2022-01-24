@@ -2,6 +2,7 @@
 
 ![Tests](https://github.com/lgloege/zenodopy/actions/workflows/tests.yaml/badge.svg)
 [![codecov](https://codecov.io/gh/lgloege/zenodopy/branch/main/graph/badge.svg?token=FVCS71HPHC)](https://codecov.io/gh/lgloege/zenodopy)
+[![pypi](https://badgen.net/pypi/v/zenodopy)](https://pypi.org/project/zenodopy)
 [![License:MIT](https://img.shields.io/badge/License-MIT-lightgray.svg?style=flt-square)](https://opensource.org/licenses/MIT)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/lgloege/zenodopy/issues)
 
