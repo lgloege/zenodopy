@@ -6,7 +6,9 @@
 [![License:MIT](https://img.shields.io/badge/License-MIT-lightgray.svg?style=flt-square)](https://opensource.org/licenses/MIT)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/lgloege/zenodopy/issues)
 
-A Python 3.6+ package to manage Zenodo repositories. 
+### Project under active deveopment, not production ready
+
+A Python 3.6+ package to manage [Zenodo](https://zenodo.org/) repositories. 
 
 ### Functions Implemented
 - `.create_project()`: create a new project
@@ -16,7 +18,6 @@ A Python 3.6+ package to manage Zenodo repositories.
 
 Installing
 ----------
-The package is installable via pip using PyPi and and GitHub
 
 ### PyPi
 ```sh
@@ -30,14 +31,14 @@ pip install -e git+https://github.com/lgloege/zenodopy.git#egg=zenodopy
 
 Using the Package
 ----------
-1. Create a Zenodo access token by first logging into your account and clicking on your username in the top right corner. Navigate to "Applications" and then "+new token" under "Personal access tokens".  Keep this window open while you proceed to step 2 because **the token is only displayed once**.
+1. **Create a Zenodo access token** by first logging into your account and clicking on your username in the top right corner. Navigate to "Applications" and then "+new token" under "Personal access tokens".  Keep this window open while you proceed to step 2 because **the token is only displayed once**.
 
-2. Store the token in `~/.zenodo_token` using the folowing command
+2. **Store the token** in `~/.zenodo_token` using the folowing command
 ```sh
  { echo 'ACCESS_TOKEN: your_access_token_here' } > ~/.zenodo_token
 ```
 
-3. With your key properly stored in `~/.zenodo_token`, you can start using the `zenodopy` package.
+3. **start using the `zenodopy` package**
 ```python
 import zenodopy
 
