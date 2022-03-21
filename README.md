@@ -21,7 +21,7 @@ Installing
 
 ### PyPi
 ```sh
-pip install zenodopy==0.1.0
+pip install zenodopy==0.2.0
 ```
 
 ### GitHub

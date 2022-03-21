@@ -523,11 +523,12 @@ class Client(object):
 
                 print(f"{file_path} successfully uploaded!") if r.ok else print("Oh no! something went wrong")
 
-    def download_file(self, filename=None):
+    def download_file(self, filename=None, dst_path=None):
         """download a file from project
 
         Args:
             filename (str): name of the file to download
+            dst_path (str): destination path to download the data (default is current directory)
         """
         if filename is None:
             print(" ** filename not supplied ** ")
@@ -544,7 +545,18 @@ class Client(object):
                 r = requests.get(f"{bucket_link}/{filename}",
                                  params=params,
                                  )
-                wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
+
+                # if dst_path is not set, set download to current directory
+                # else download to set dst_path
+                if dst_path is None:
+                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
+                elif os.path.isdir(dst_path):
+                    cwd = os.getcwd()
+                    os.chdir(dst_path)
+                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
+                    os.chdir(cwd)
+                else:
+                    raise FileNotFoundError(f'{dst_path} does not exist')
             else:
                 print(f' ** {bucket_link}/{filename} is not a valid URL ** ')
 
