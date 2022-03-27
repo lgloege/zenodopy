@@ -135,16 +135,16 @@ class Client(object):
             str: ACCESS_TOKEN to connect to web3 storage
         """
         if self.sandbox:
-            dotrc = os.environ.get("ACCESS_TOKEN-sandbox", os.path.expanduser("~/zenodo_token"))
+            dotrc = os.environ.get("ACCESS_TOKEN-sandbox", os.path.expanduser("~/.zenodo_token"))
         else:
-            dotrc = os.environ.get("ACCESS_TOKEN", os.path.expanduser("~/zenodo_token"))
+            dotrc = os.environ.get("ACCESS_TOKEN", os.path.expanduser("~/.zenodo_token"))
 
         if os.path.exists(dotrc):
             config = self._read_config(dotrc)
             key = config.get("ACCESS_TOKEN-sandbox") if self.sandbox else config.get("ACCESS_TOKEN")
             return key
         else:
-            print(' ** No token was found, check your ~/.web3_storage_token file ** ')
+            print(' ** No token was found, check your ~/.zenodo_token file ** ')
 
     def _get_depositions(self):
         """gets the current project deposition
