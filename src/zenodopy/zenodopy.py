@@ -24,6 +24,17 @@ def validate_url(url):
     return re.match(regex, url) is not None
 
 
+class BearerAuth(requests.auth.AuthBase):
+    """Bearer Authentication"""
+
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, r):
+        r.headers["authorization"] = "Bearer " + self.token
+        return r
+
+
 class Client(object):
     """Zenodo Client object
 
@@ -42,12 +53,20 @@ class Client(object):
         ```
     """
 
-    def __init__(self, title=None, bucket=None, deposition_id=None, sandbox=None, ACCESS_TOKEN=None):
+    def __init__(self, title=None, bucket=None, deposition_id=None, sandbox=None, token=None):
+        """initialization method"""
+        if sandbox:
+            self._endpoint = "https://sandbox.zenodo.org/api"
+        else:
+            self._endpoint = "https://zenodo.org/api"
+
         self.title = title
         self.bucket = bucket
         self.deposition_id = deposition_id
         self.sandbox = sandbox
-        self.ACCESS_TOKEN = ACCESS_TOKEN
+        # self.ACCESS_TOKEN = ACCESS_TOKEN
+        self._token = self._read_from_config if token is None else token
+        self._bearer_auth = BearerAuth(self._token)
         # 'metadata/prereservation_doi/doi'
 
     def __repr__(self):
@@ -108,6 +127,25 @@ class Client(object):
                     if key in ("ACCESS_TOKEN", "ACCESS_TOKEN-sandbox"):
                         config[key] = value.strip()
         return config
+
+    @property
+    def _read_from_config(self):
+        """reads the web3.storage token from configuration file
+        configuration file is ~/.web3_storage_token
+        Returns:
+            str: ACCESS_TOKEN to connect to web3 storage
+        """
+        if self.sandbox:
+            dotrc = os.environ.get("ACCESS_TOKEN-sandbox", os.path.expanduser("~/zenodo_token"))
+        else:
+            dotrc = os.environ.get("ACCESS_TOKEN", os.path.expanduser("~/zenodo_token"))
+
+        if os.path.exists(dotrc):
+            config = self._read_config(dotrc)
+            key = config.get("ACCESS_TOKEN-sandbox") if self.sandbox else config.get("ACCESS_TOKEN")
+            return key
+        else:
+            print(' ** No token was found, check your ~/.web3_storage_token file ** ')
 
     def _get_baseurl(self):
         """API URL
@@ -175,12 +213,9 @@ class Client(object):
         # api baseurl (tested)
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         # get request, returns our response
         r = requests.get(f"{baseurl}/deposit/depositions",
-                         headers=headers)
+                         auth=self._bearer_auth)
         if r.ok:
             return r.json()
         else:
@@ -200,13 +235,10 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         # get request, returns our response
         # if dep_id is not None:
         r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
-                         headers=headers)
+                         auth=self._bearer_auth)
 
         if r.ok:
             return r.json()
@@ -224,8 +256,6 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
         dep_id = self.deposition_id
 
         # get request, returns our response
@@ -251,16 +281,13 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         dic = self.list_projects
 
         dep_id = dic[title] if dic is not None else None
 
         # get request, returns our response, this the records metadata
         r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
-                         headers=headers)
+                         auth=self._bearer_auth)
 
         if r.ok:
             return r.json()['links']['bucket']
@@ -281,15 +308,12 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         # dic = get_projects()
         # dep_id = dic[title]
 
         # get request, returns our response
         r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
-                         headers=headers)
+                         auth=self._bearer_auth)
 
         if r.ok:
             return r.json()['links']['bucket']
@@ -300,11 +324,8 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         # get request, returns our response
-        r = requests.get(f"{baseurl}", headers=headers)
+        r = requests.get(f"{baseurl}", auth=self._bearer_auth)
 
         if r.ok:
             return r.json()
@@ -408,12 +429,9 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         # get request, returns our response
         r = requests.post(f"{baseurl}/deposit/depositions",
-                          headers=headers,
+                          auth=self._bearer_auth,
                           data=json.dumps({}))
 
         if r.ok:
@@ -471,8 +489,6 @@ class Client(object):
 
         baseurl = self._get_baseurl()
 
-        headers = self._get_headers()
-
         if upload_type is None:
             upload_type = 'other'
 
@@ -488,7 +504,7 @@ class Client(object):
         }
 
         r = requests.put(f"{baseurl}/deposit/depositions/{dep_id}",
-                         headers=headers,
+                         auth=self._bearer_auth,
                          data=json.dumps(data))
 
         if r.ok:
@@ -511,14 +527,11 @@ class Client(object):
             key = self._get_key()
             bucket_link = self.bucket
 
-            # parameters
-            params = {'access_token': key}
-
             with open(file_path, "rb") as fp:
                 # text after last '/' is the filename
                 filename = file_path.split('/')[-1]
                 r = requests.put(f"{bucket_link}/{filename}",
-                                 params=params,
+                                 auth=self._bearer_auth,
                                  data=fp,)
 
                 print(f"{file_path} successfully uploaded!") if r.ok else print("Oh no! something went wrong")
@@ -535,16 +548,12 @@ class Client(object):
 
         key = self._get_key()
 
-        # parameters
-        params = {'access_token': key}
-
         bucket_link = self.bucket
 
         if bucket_link is not None:
             if validate_url(bucket_link):
                 r = requests.get(f"{bucket_link}/{filename}",
-                                 params=params,
-                                 )
+                                 auth=self._bearer_auth)
 
                 # if dst_path is not set, set download to current directory
                 # else download to set dst_path
@@ -566,16 +575,11 @@ class Client(object):
         Args:
             filename (str): the name of file to delete
         """
-        key = self._get_key()
-
-        # parameters
-        params = {'access_token': key}
-
         bucket_link = self.bucket
 
         # with open(file_path, "rb") as fp:
         _ = requests.delete(f"{bucket_link}/{filename}",
-                            params=params,)
+                            auth=self._bearer_auth)
 
     def _delete_project(self, dep_id=None):
         """delete a project from repository by ID
@@ -587,14 +591,11 @@ class Client(object):
         # api baseurl
         baseurl = self._get_baseurl()
 
-        # header data attached to request
-        headers = self._get_headers()
-
         print('')
         # if input("are you sure you want to delete this project? (y/n)") == "y":
         # delete requests, we are deleting the resource at the specified URL
         r = requests.delete(f'{baseurl}/deposit/depositions/{dep_id}',
-                            headers=headers)
+                            auth=self._bearer_auth)
         # response status
         print(r.status_code)
 
