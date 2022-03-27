@@ -64,7 +64,6 @@ class Client(object):
         self.bucket = bucket
         self.deposition_id = deposition_id
         self.sandbox = sandbox
-        # self.ACCESS_TOKEN = ACCESS_TOKEN
         self._token = self._read_from_config if token is None else token
         self._bearer_auth = BearerAuth(self._token)
         # 'metadata/prereservation_doi/doi'
@@ -147,61 +146,6 @@ class Client(object):
         else:
             print(' ** No token was found, check your ~/.web3_storage_token file ** ')
 
-    def _get_baseurl(self):
-        """API URL
-
-        This either returns the sandbox API URL
-        or the actual Zenodo API URL.
-        Sandbox is used for testing purposes
-        and is not meant for projects you want to persist
-
-        Returns:
-            str: The API's URL
-        """
-        if self.sandbox:
-            return "https://sandbox.zenodo.org/api"
-        else:
-            return "https://zenodo.org/api"
-
-    def _get_key(self):
-        """gets the ACCESS_TOKEN
-
-        Returns:
-            str: ACCESS_TOKEN to connect to zenodo
-        """
-        dotrc = os.environ.get("ACCESS_TOKEN", os.path.expanduser("~/.zenodo_token"))
-        if os.path.exists(dotrc):
-            config = self._read_config(dotrc)
-            if self.sandbox is None:
-                key = config.get("ACCESS_TOKEN")
-                return key
-            else:
-                key = config.get("ACCESS_TOKEN-sandbox")
-                return key
-        else:
-            print(' ** No ACCESS_TOKEN was found, check your ~/.zenodo_token file ** ')
-
-        # initialize with key
-        if self.ACCESS_TOKEN is not None:
-            print(' ** Using ACCESS_TOKEN supplied at initialization ** ')
-            return self.ACCESS_TOKEN
-
-    def _get_headers(self):
-        """gets the request headers
-
-        Returns:
-            dict: headers supplied to request calls
-        """
-        # gets the API key (tested)
-        key = self._get_key()
-
-        # header data attached to request
-        if key is not None:
-            return {"Content-Type": "application/json",
-                    "Authorization": f"Bearer {key}"}
-        else:
-            return None
-
     def _get_depositions(self):
         """gets the current project deposition
 
@@ -210,11 +154,8 @@ class Client(object):
         Returns:
             dict: dictionary containing project details
         """
-        # api baseurl (tested)
-        baseurl = self._get_baseurl()
-
         # get request, returns our response
-        r = requests.get(f"{baseurl}/deposit/depositions",
+        r = requests.get(f"{self._endpoint}/deposit/depositions",
                          auth=self._bearer_auth)
         if r.ok:
             return r.json()
@@ -232,12 +173,9 @@ class Client(object):
         Returns:
             dict: dictionary containing project details
         """
-        # api baseurl
-        baseurl = self._get_baseurl()
-
         # get request, returns our response
         # if dep_id is not None:
-        r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
+        r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth)
 
         if r.ok:
@@ -253,14 +191,9 @@ class Client(object):
         Returns:
             dict: dictionary containing project details
         """
-        # api baseurl
-        baseurl = self._get_baseurl()
-
-        dep_id = self.deposition_id
-
         # get request, returns our response
-        r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}/files",
-                         headers=headers)
+        r = requests.get(f"{self._endpoint}/deposit/depositions/{self.deposition_id}/files",
+                         auth=self._bearer_auth)
 
         if r.ok:
             return r.json()
@@ -278,15 +211,11 @@ class Client(object):
         Returns:
             str: the bucket URL to upload files to
         """
-        # api baseurl
-        baseurl = self._get_baseurl()
-
         dic = self.list_projects
-
         dep_id = dic[title] if dic is not None else None
 
         # get request, returns our response, this the records metadata
-        r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
+        r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth)
 
         if r.ok:
@@ -305,14 +234,8 @@ class Client(object):
         Returns:
             str: the bucket URL to upload files to
         """
-        # api baseurl
-        baseurl = self._get_baseurl()
-
-        # dic = get_projects()
-        # dep_id = dic[title]
-
         # get request, returns our response
-        r = requests.get(f"{baseurl}/deposit/depositions/{dep_id}",
+        r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth)
 
         if r.ok:
@@ -321,11 +244,8 @@ class Client(object):
             return None
 
     def _get_api(self):
-        # api baseurl
-        baseurl = self._get_baseurl()
-
         # get request, returns our response
-        r = requests.get(f"{baseurl}", auth=self._bearer_auth)
+        r = requests.get(f"{self._endpoint}", auth=self._bearer_auth)
 
         if r.ok:
             return r.json()
@@ -426,11 +346,8 @@ class Client(object):
                           UserWarning)
             upload_type = 'other'
 
-        # api baseurl
-        baseurl = self._get_baseurl()
-
         # get request, returns our response
-        r = requests.post(f"{baseurl}/deposit/depositions",
+        r = requests.post(f"{self._endpoint}/deposit/depositions",
                           auth=self._bearer_auth,
                           data=json.dumps({}))
 
@@ -486,9 +403,6 @@ class Client(object):
         Returns:
             dict: dictionary with new metadata
         """
-
-        baseurl = self._get_baseurl()
-
         if upload_type is None:
             upload_type = 'other'
 
@@ -503,7 +417,7 @@ class Client(object):
             }
         }
 
-        r = requests.put(f"{baseurl}/deposit/depositions/{dep_id}",
+        r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth,
                          data=json.dumps(data))
 
@@ -524,7 +438,6 @@ class Client(object):
         if not Path(os.path.expanduser(file_path)).exists():
             print(f"{file_path} does not exist. Please check you entered the correct path")
         else:
-            key = self._get_key()
             bucket_link = self.bucket
 
             with open(file_path, "rb") as fp:
@@ -545,8 +458,6 @@ class Client(object):
         """
         if filename is None:
             print(" ** filename not supplied ** ")
-
-        key = self._get_key()
 
         bucket_link = self.bucket
 
@@ -587,14 +498,10 @@ class Client(object):
         Args:
             dep_id (str): The project deposition ID
         """
-        # warnings.warn("This will permanently delete your project. Proceed with caution'", )
-        # api baseurl
-        baseurl = self._get_baseurl()
-
         print('')
         # if input("are you sure you want to delete this project? (y/n)") == "y":
         # delete requests, we are deleting the resource at the specified URL
-        r = requests.delete(f'{baseurl}/deposit/depositions/{dep_id}',
+        r = requests.delete(f'{self._endpoint}/deposit/depositions/{dep_id}',
                             auth=self._bearer_auth)
         # response status
         print(r.status_code)
