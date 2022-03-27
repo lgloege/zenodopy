@@ -5,6 +5,8 @@ import re
 import requests
 import warnings
 import wget
+import tarfile
+import zipfile
 
 
 def validate_url(url):
@@ -22,6 +24,30 @@ def validate_url(url):
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
     return re.match(regex, url) is not None
+
+
+def make_tarfile(output_file, source_dir):
+    """tar a directory
+    args
+    -----
+    output_file: path to output file
+    source_dir: path to source directory
+
+    returns
+    -----
+    tarred directory will be in output_file
+    """
+    with tarfile.open(output_file, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+
+
+def make_zipfile(path, ziph):
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            ziph.write(os.path.join(root, file),
+                       os.path.relpath(os.path.join(root, file),
+                                       os.path.join(path, '..')))
 
 
 class BearerAuth(requests.auth.AuthBase):
@@ -448,6 +474,121 @@ class Client(object):
                                  data=fp,)
 
                 print(f"{file_path} successfully uploaded!") if r.ok else print("Oh no! something went wrong")
+
+    def upload_zip(self, source_dir=None, output_file=None):
+        """upload a directory to a project as zip
+
+        This will: 
+            1. zip the directory, 
+            2. upload the zip directory to your project
+            3. remove the zip file from your local machine
+
+        Args:
+            source_dir (str): path to directory to tar
+            output_file (str): name of output file (optional)
+                defaults to using the source_dir name as output_file
+        """
+        # make sure source directory exists
+        source_dir = os.path.expanduser(source_dir)
+        source_obj = Path(source_dir)
+        if not source_obj.exists():
+            raise FileNotFoundError(f"{source_dir} does not exist")
+
+        # acceptable extensions for outputfile
+        acceptable_extensions = ['.zip']
+
+        # use name of source_dir for output_file if none is included
+        if not output_file:
+            output_file = f"{source_obj.stem}.zip"
+            output_obj = Path(output_file)
+        else:
+            output_file = os.path.expanduser(output_file)
+            output_obj = Path(output_file)
+            extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
+            # make sure extension is acceptable
+            if extension in acceptable_extensions:
+                raise Exception(f"Extension must be in {acceptable_extensions}")
+            # add an extension if not included
+            if not extension:
+                output_file = os.path.expanduser(output_file + '.zip')
+                output_obj = Path(output_file)
+
+        # check to make sure outputfile doesn't already exist
+        if output_obj.exists():
+            raise Exception(f"{output_obj} already exists. Please chance the name")
+
+        # create tar directory if does not exist
+        if output_obj.parent.exists():
+            with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                make_zipfile(source_dir, zipf)
+        else:
+            os.makedirs(output_obj.parent)
+            with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                make_zipfile(source_dir, zipf)
+
+        # upload the file
+        self.upload_file(file_path=output_file)
+
+        # remove tar file after uploading it
+        os.remove(output_file)
+
+    def upload_tar(self, source_dir=None, output_file=None):
+        """upload a directory to a project
+
+        This will: 
+            1. tar the directory, 
+            2. upload the tarred directory to your project
+            3. remove the tar file from your local machine
+
+        Args:
+            source_dir (str): path to directory to tar
+            output_file (str): name of output file (optional)
+                defaults to using the source_dir name as output_file
+        """
+        # output_file = './tmp/tarTest.tar.gz'
+        # source_dir = '/Users/gloege/test'
+
+        # make sure source directory exists
+        source_dir = os.path.expanduser(source_dir)
+        source_obj = Path(source_dir)
+        if not source_obj.exists():
+            raise FileNotFoundError(f"{source_dir} does not exist")
+
+        # acceptable extensions for outputfile
+        acceptable_extensions = ['.tar.gz']
+
+        # use name of source_dir for output_file if none is included
+        if not output_file:
+            output_file = f"{source_obj.stem}.tar.gz"
+            output_obj = Path(output_file)
+        else:
+            output_file = os.path.expanduser(output_file)
+            output_obj = Path(output_file)
+            extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
+            # make sure extension is acceptable
+            if extension in acceptable_extensions:
+                raise Exception(f"Extension must be in {acceptable_extensions}")
+            # add an extension if not included
+            if not extension:
+                output_file = os.path.expanduser(output_file + '.tar.gz')
+                output_obj = Path(output_file)
+
+        # check to make sure outputfile doesn't already exist
+        if output_obj.exists():
+            raise Exception(f"{output_obj} already exists. Please chance the name")
+
+        # create tar directory if does not exist
+        if output_obj.parent.exists():
+            make_tarfile(output_file=output_file, source_dir=source_dir)
+        else:
+            os.makedirs(output_obj.parent)
+            make_tarfile(output_file=output_file, source_dir=source_dir)
+
+        # upload the file
+        self.upload_file(file_path=output_file)
+
+        # remove tar file after uploading it
+        os.remove(output_file)
 
     def download_file(self, filename=None, dst_path=None):
         """download a file from project
