@@ -15,13 +15,14 @@ A Python 3.6+ package to manage [Zenodo](https://zenodo.org/) repositories.
 - `.upload_file()`: upload file to project
 - `.download_file()`: download a file from a project
 - `.delete_file()`: permanently removes a file from a project
+- `.get_urls_from_doi()`: returns the files urls for a given doi
 
 Installing
 ----------
 
 ### PyPi
 ```sh
-pip install zenodopy==0.2.0
+pip install zenodopy==0.3.0
 ```
 
 ### GitHub
