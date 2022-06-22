@@ -621,6 +621,49 @@ class Client(object):
             else:
                 print(f' ** {bucket_link}/{filename} is not a valid URL ** ')
 
+    def _is_doi(self, string=None):
+        """test if string is of the form of a zenodo doi
+        10.5281.zenodo.[0-9]+
+
+        Args:
+            string (strl): string to test. Defaults to None.
+
+        Returns:
+           bool: true is string is doi-like
+        """
+        import re
+        pattern = re.compile("10.5281/zenodo.[0-9]+")
+        return pattern.match(string)
+
+    def _get_record_id_from_doi(self, doi=None):
+        """return the record id for given doi
+
+        Args:
+            doi (string, optional): the zenodo doi. Defaults to None.
+
+        Returns:
+            str: the record id from the doi (just the last numbers)
+        """
+        return doi.split('.')[-1]
+
+    def get_urls_from_doi(self, doi=None):
+        """the files urls for the given doi
+
+        Args:
+            doi (str): the doi you want the urls from. Defaults to None.
+
+        Returns:
+            list: a list of the files urls for the given doi
+        """
+        if self._is_doi(doi):
+            record_id = self._get_record_id_from_doi(doi)
+        else:
+            print(f"{doi} must be of the form: 10.5281/zenodo.[0-9]+")
+
+        # get request (do not need to provide access token since public
+        r = requests.get(f"https://zenodo.org/api/records/{record_id}")  # params={'access_token': ACCESS_TOKEN})
+        return [f['links']['self'] for f in r.json()['files']]
+
     def delete_file(self, filename=None):
         """delete a file from a project
 
