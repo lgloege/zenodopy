@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 import requests
 import warnings
-import wget
 import tarfile
 import zipfile
 
@@ -456,7 +455,7 @@ class Client(object):
         """upload a file to a project
 
         Args:
-            filename (str): name of the file to download
+            filename (str): name of the file to upload
         """
         if file_path is None:
             print("You need to supply a path")
@@ -609,15 +608,18 @@ class Client(object):
 
                 # if dst_path is not set, set download to current directory
                 # else download to set dst_path
-                if dst_path is None:
-                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
-                elif os.path.isdir(dst_path):
-                    cwd = os.getcwd()
-                    os.chdir(dst_path)
-                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
-                    os.chdir(cwd)
+                if dst_path:
+                    if os.path.isdir(dst_path):
+                        filename = dst_path + '/' + filename 
+                    else:
+                        raise FileNotFoundError(f'{dst_path} does not exist')
+                        
+                if r.ok:
+                    with open(filename, 'wb') as f:
+                        f.write(r.content)                    
                 else:
-                    raise FileNotFoundError(f'{dst_path} does not exist')
+                    print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
+                    
             else:
                 print(f' ** {bucket_link}/{filename} is not a valid URL ** ')
 
