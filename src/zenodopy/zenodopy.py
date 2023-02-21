@@ -666,6 +666,17 @@ class Client(object):
         r = requests.get(f"https://zenodo.org/api/records/{record_id}")  # params={'access_token': ACCESS_TOKEN})
         return [f['links']['self'] for f in r.json()['files']]
 
+    def get_latest_record(self, record_id=None):
+        """return the latest record id for given record id
+        
+        Args:
+            record_id (str or int): the record id you known. Defaults to None.
+
+        Returns:
+            str: the latest record id
+        """
+        return self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
+
     def delete_file(self, filename=None):
         """delete a file from a project
 
