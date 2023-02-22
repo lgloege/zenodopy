@@ -505,7 +505,7 @@ class Client(object):
             output_obj = Path(output_file)
             extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
             # make sure extension is acceptable
-            if extension in acceptable_extensions:
+            if extension not in acceptable_extensions:
                 raise Exception(f"Extension must be in {acceptable_extensions}")
             # add an extension if not included
             if not extension:
@@ -565,7 +565,7 @@ class Client(object):
             output_obj = Path(output_file)
             extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
             # make sure extension is acceptable
-            if extension in acceptable_extensions:
+            if extension not in acceptable_extensions:
                 raise Exception(f"Extension must be in {acceptable_extensions}")
             # add an extension if not included
             if not extension:
