@@ -36,11 +36,8 @@ pip install -e git+https://github.com/lgloege/zenodopy.git#egg=zenodopy
 Using the Package
 -----------------
 
-1. **Create a Zenodo access token** by first logging into your account and clicking on your username in the top right corner. Navigate to "Applications" and then "+new token" under "Personal access tokens".  Keep this window open while you proceed to step 2 because **the token is only displayed once**.
-
-Note. Sandbox.zenodo is used for testing and zenodo for production. If you want to use both, create for each a token as desribed above.
-
-1. **Store the token** in `~/.zenodo_token` using the following command.
+1. **Create a Zenodo access token** by first logging into your account and clicking on your username in the top right corner. Navigate to "Applications" and then "+new token" under "Personal access tokens".  Keep this window open while you proceed to step 2 because **the token is only displayed once**. Note that Sandbox.zenodo is used for testing and zenodo for production. If you want to use both, create for each a token as desribed above.
+2. **Store the token** in `~/.zenodo_token` using the following command.
 
 ```sh
 # zenodo token
