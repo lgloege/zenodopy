@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 import requests
 import warnings
-import wget
 import tarfile
 import zipfile
 
@@ -452,11 +451,12 @@ class Client(object):
         else:
             return None
 
-    def upload_file(self, file_path=None):
+    def upload_file(self, file_path=None, publish=False):
         """upload a file to a project
 
         Args:
-            filename (str): name of the file to download
+            file_path (str): name of the file to upload
+            publish (bool): whether implemente publish action or not
         """
         if file_path is None:
             print("You need to supply a path")
@@ -474,8 +474,11 @@ class Client(object):
                                  data=fp,)
 
                 print(f"{file_path} successfully uploaded!") if r.ok else print("Oh no! something went wrong")
+            
+            if publish:
+                return self.publish()
 
-    def upload_zip(self, source_dir=None, output_file=None):
+    def upload_zip(self, source_dir=None, output_file=None, publish=False):
         """upload a directory to a project as zip
 
         This will: 
@@ -487,6 +490,7 @@ class Client(object):
             source_dir (str): path to directory to tar
             output_file (str): name of output file (optional)
                 defaults to using the source_dir name as output_file
+            publish (bool): whether implemente publish action or not, argument for `upload_file`
         """
         # make sure source directory exists
         source_dir = os.path.expanduser(source_dir)
@@ -506,7 +510,7 @@ class Client(object):
             output_obj = Path(output_file)
             extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
             # make sure extension is acceptable
-            if extension in acceptable_extensions:
+            if extension not in acceptable_extensions:
                 raise Exception(f"Extension must be in {acceptable_extensions}")
             # add an extension if not included
             if not extension:
@@ -527,12 +531,12 @@ class Client(object):
                 make_zipfile(source_dir, zipf)
 
         # upload the file
-        self.upload_file(file_path=output_file)
+        self.upload_file(file_path=output_file, publish=publish)
 
         # remove tar file after uploading it
         os.remove(output_file)
 
-    def upload_tar(self, source_dir=None, output_file=None):
+    def upload_tar(self, source_dir=None, output_file=None, publish=False):
         """upload a directory to a project
 
         This will: 
@@ -544,6 +548,7 @@ class Client(object):
             source_dir (str): path to directory to tar
             output_file (str): name of output file (optional)
                 defaults to using the source_dir name as output_file
+            publish (bool): whether implemente publish action or not, argument for `upload_file`
         """
         # output_file = './tmp/tarTest.tar.gz'
         # source_dir = '/Users/gloege/test'
@@ -566,7 +571,7 @@ class Client(object):
             output_obj = Path(output_file)
             extension = ''.join(output_obj.suffixes)  # gets extension like .tar.gz
             # make sure extension is acceptable
-            if extension in acceptable_extensions:
+            if extension not in acceptable_extensions:
                 raise Exception(f"Extension must be in {acceptable_extensions}")
             # add an extension if not included
             if not extension:
@@ -585,10 +590,53 @@ class Client(object):
             make_tarfile(output_file=output_file, source_dir=source_dir)
 
         # upload the file
-        self.upload_file(file_path=output_file)
+        self.upload_file(file_path=output_file, publish=publish)
 
         # remove tar file after uploading it
         os.remove(output_file)
+
+    def update(self, source=None, output_file=None, publish=False):
+        """update an existed record
+
+        Args:
+            source (str): path to directory or file to upload
+            output_file (str): name of output file (optional)
+                defaults to using the source_dir name as output_file
+            publish (bool): whether implemente publish action or not, argument for `upload_file`
+        """
+        # create a draft deposition
+        url_action = self._get_depositions_by_id(self.deposition_id)['links']['newversion']
+        r = requests.post(url_action, auth=self._bearer_auth)
+        r.raise_for_status()
+
+        # parse current project to the draft deposition
+        new_dep_id = r.json()['links']['latest_draft'].split('/')[-1]
+        self.set_project(new_dep_id)
+
+        # invoke upload funcions
+        if not source:
+            print("You need to supply a path")
+        
+        if Path(source).exists():
+            if Path(source).is_file():
+                self.upload_file(source, publish=publish)
+            elif Path(source).is_dir():
+                if not output_file:
+                    self.upload_zip(source, publish=publish)
+                elif '.zip' in ''.join(Path(output_file).suffixes).lower():
+                    self.upload_zip(source, output_file, publish=publish)
+                elif '.tar.gz' in ''.join(Path(output_file).suffixes).lower():
+                    self.upload_tar(source, output_file, publish=publish)
+        else:
+            raise FileNotFoundError(f"{source_dir} does not exist")
+        
+    def publish(self):
+        """ publish a record
+        """
+        url_action = self._get_depositions_by_id(self.deposition_id)['links']['publish']
+        r = requests.post(url_action, auth=self._bearer_auth)
+        r.raise_for_status()
+        return r
 
     def download_file(self, filename=None, dst_path=None):
         """download a file from project
@@ -609,15 +657,18 @@ class Client(object):
 
                 # if dst_path is not set, set download to current directory
                 # else download to set dst_path
-                if dst_path is None:
-                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
-                elif os.path.isdir(dst_path):
-                    cwd = os.getcwd()
-                    os.chdir(dst_path)
-                    wget.download(r.url) if r.ok else print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
-                    os.chdir(cwd)
+                if dst_path:
+                    if os.path.isdir(dst_path):
+                        filename = dst_path + '/' + filename 
+                    else:
+                        raise FileNotFoundError(f'{dst_path} does not exist')
+                        
+                if r.ok:
+                    with open(filename, 'wb') as f:
+                        f.write(r.content)                    
                 else:
-                    raise FileNotFoundError(f'{dst_path} does not exist')
+                    print(f" ** Something went wrong, check that {filename} is in your poject  ** ")
+                    
             else:
                 print(f' ** {bucket_link}/{filename} is not a valid URL ** ')
 
@@ -663,6 +714,17 @@ class Client(object):
         # get request (do not need to provide access token since public
         r = requests.get(f"https://zenodo.org/api/records/{record_id}")  # params={'access_token': ACCESS_TOKEN})
         return [f['links']['self'] for f in r.json()['files']]
+
+    def get_latest_record(self, record_id=None):
+        """return the latest record id for given record id
+        
+        Args:
+            record_id (str or int): the record id you known. Defaults to None.
+
+        Returns:
+            str: the latest record id
+        """
+        return self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
 
     def delete_file(self, filename=None):
         """delete a file from a project
