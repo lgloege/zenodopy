@@ -306,7 +306,7 @@ class Client(object):
 
                 import zenodopy
                 zeno = zenodopy.Client()
-                zeno._get_key() # this should display your ACCESS_TOKEN
+                zeno._token # this should display your ACCESS_TOKEN
             '''
         )
 
@@ -375,7 +375,8 @@ class Client(object):
         # get request, returns our response
         r = requests.post(f"{self._endpoint}/deposit/depositions",
                           auth=self._bearer_auth,
-                          data=json.dumps({}))
+                          data=json.dumps({}),
+                          headers={'Content-Type': 'application/json'})
 
         if r.ok:
             deposition_id = r.json()['id']
@@ -445,7 +446,8 @@ class Client(object):
 
         r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth,
-                         data=json.dumps(data))
+                         data=json.dumps(data),
+                         headers={'Content-Type': 'application/json'})
 
         if r.ok:
             return r.json()
@@ -456,13 +458,17 @@ class Client(object):
         """upload a file to a project
 
         Args:
-            filename (str): name of the file to download
+            filename (str): name of the file to upload
         """
         if file_path is None:
             print("You need to supply a path")
 
         if not Path(os.path.expanduser(file_path)).exists():
             print(f"{file_path} does not exist. Please check you entered the correct path")
+
+        if self.bucket is None:
+            print("You need to create a project with zeno.create_project() "
+                  "or set a project zeno.set_project() before uploading a file") 
         else:
             bucket_link = self.bucket
 
