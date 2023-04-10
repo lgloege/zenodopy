@@ -410,6 +410,7 @@ class Client(object):
                         title=None,
                         upload_type=None,
                         description=None,
+                        creator=None,
                         **kwargs
                         ):
         """change projects metadata
@@ -436,12 +437,16 @@ class Client(object):
 
         if description is None:
             description = "description goes here"
+        
+        if creator is None:
+            creator = "creator goes here"
 
         data = {
             "metadata": {
                 "title": f"{title}",
                 "upload_type": f"{upload_type}",
                 "description": f"{description}",
+                "creators": [{"name": f"{creator}"}]
             }
         }
         # update metadata with a new metadata dictionary
