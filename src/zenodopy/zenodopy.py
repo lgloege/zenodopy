@@ -185,7 +185,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_depositions_by_id(self, dep_id=None):
         """gets the deposition based on project id
@@ -206,7 +206,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_depositions_files(self):
         """gets the file deposition
@@ -223,7 +223,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_bucket_by_title(self, title=None):
         """gets the bucket URL by project title
@@ -246,7 +246,7 @@ class Client(object):
         if r.ok:
             return r.json()['links']['bucket']
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_bucket_by_id(self, dep_id=None):
         """gets the bucket URL by project deposition ID
@@ -266,7 +266,7 @@ class Client(object):
         if r.ok:
             return r.json()['links']['bucket']
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_api(self):
         # get request, returns our response
@@ -275,7 +275,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     # ---------------------------------------------
     # user facing functions/properties
@@ -451,7 +451,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def upload_file(self, file_path=None, publish=False):
         """upload a file to a project
