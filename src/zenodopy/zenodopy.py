@@ -410,6 +410,7 @@ class Client(object):
                         title=None,
                         upload_type=None,
                         description=None,
+                        **kwargs
                         ):
         """change projects metadata
 
@@ -425,6 +426,7 @@ class Client(object):
             title (str): new title of project
             upload_type (str): new upload type
             description (str): new description
+            **kwargs: dictionary to update default metadata
 
         Returns:
             dict: dictionary with new metadata
@@ -442,6 +444,8 @@ class Client(object):
                 "description": f"{description}",
             }
         }
+        # update metadata with a new metadata dictionary
+        data.update(kwargs) 
 
         r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth,
