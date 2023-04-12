@@ -318,19 +318,22 @@ class Client(object):
         tmp = self._get_depositions()
 
         if isinstance(tmp, list):
-            print('Project Name ---- ID')
+            print('Project Name ---- ID ---- Status ---- Latest Published ID')
             print('------------------------')
             for file in tmp:
-                # dic[file['title']] = file['id']
-                print(f"{file['title']} ----- {file['id']}")
+                status = {}  # just to rename the file outputs and deal with exceptions
+                if file['submitted']:
+                    status['submitted'] = 'published'
+                else:
+                    status['submitted'] = 'unpublished'
+                try:
+                    status["latest"] = ''.join([c for c in file['links']['latest'] if c.isdigit()])
+                except:
+                    status["latest_draft"] = 'None'
+                    
+                print(f"{file['title']} ---- {file['id']} ---- {status['submitted']} ---- {status['latest_draft']}")
         else:
             print(' ** need to setup ~/.zenodo_token file ** ')
-
-        # print('Project Name ---- ID')
-        # print('------------------------')
-        # for key, val in dic.items():
-        #    print(f"{key} ---- {val}")
-        # return dic
 
     @property
     def list_files(self):
