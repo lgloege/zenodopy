@@ -319,19 +319,17 @@ class Client(object):
 
         if isinstance(tmp, list):
             print('Project Name ---- ID ---- Status ---- Latest Published ID')
-            print('------------------------')
+            print('---------------------------------------------------------')
             for file in tmp:
                 status = {}  # just to rename the file outputs and deal with exceptions
                 if file['submitted']:
                     status['submitted'] = 'published'
                 else:
                     status['submitted'] = 'unpublished'
-                try:
-                    status["latest"] = ''.join([c for c in file['links']['latest'] if c.isdigit()])
-                except:
-                    status["latest_draft"] = 'None'
+                
+                status["latest"] = self._get_latest_record(file['id'])
                     
-                print(f"{file['title']} ---- {file['id']} ---- {status['submitted']} ---- {status['latest_draft']}")
+                print(f"{file['title']} ---- {file['id']} ---- {status['submitted']} ---- {status['latest']}")
         else:
             print(' ** need to setup ~/.zenodo_token file ** ')
 
@@ -402,8 +400,7 @@ class Client(object):
         if projects is not None:
             project_list = [d for d in projects if d['id'] == int(dep_id)]
             if len(project_list) > 0:
-                title = project_list[0]['title']
-                self.title = title
+                self.title = project_list[0]['title']
                 self.bucket = self._get_bucket_by_id(dep_id)
                 self.deposition_id = dep_id
         else:
@@ -733,16 +730,20 @@ class Client(object):
         r = requests.get(f"https://zenodo.org/api/records/{record_id}")  # params={'access_token': ACCESS_TOKEN})
         return [f['links']['self'] for f in r.json()['files']]
 
-    def get_latest_record(self, record_id=None):
+    def _get_latest_record(self, record_id=None):
         """return the latest record id for given record id
         
         Args:
             record_id (str or int): the record id you known. Defaults to None.
 
         Returns:
-            str: the latest record id
+            str: the latest record id or 'None' if not found
         """
-        return self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
+        try:
+            record = self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
+        except:
+            record = 'None'
+        return record
 
     def delete_file(self, filename=None):
         """delete a file from a project
