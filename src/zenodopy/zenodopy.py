@@ -643,7 +643,7 @@ class Client(object):
                 elif '.tar.gz' in ''.join(Path(output_file).suffixes).lower():
                     self.upload_tar(source, output_file, publish=publish)
         else:
-            raise FileNotFoundError(f"{source_dir} does not exist")
+            raise FileNotFoundError(f"{source} does not exist")
         
     def publish(self):
         """ publish a record
