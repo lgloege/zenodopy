@@ -185,7 +185,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_depositions_by_id(self, dep_id=None):
         """gets the deposition based on project id
@@ -206,7 +206,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_depositions_files(self):
         """gets the file deposition
@@ -223,7 +223,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_bucket_by_title(self, title=None):
         """gets the bucket URL by project title
@@ -246,7 +246,7 @@ class Client(object):
         if r.ok:
             return r.json()['links']['bucket']
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_bucket_by_id(self, dep_id=None):
         """gets the bucket URL by project deposition ID
@@ -266,7 +266,7 @@ class Client(object):
         if r.ok:
             return r.json()['links']['bucket']
         else:
-            return None
+            return r.raise_for_status()
 
     def _get_api(self):
         # get request, returns our response
@@ -275,7 +275,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     # ---------------------------------------------
     # user facing functions/properties
@@ -318,19 +318,22 @@ class Client(object):
         tmp = self._get_depositions()
 
         if isinstance(tmp, list):
-            print('Project Name ---- ID')
+            print('Project Name ---- ID ---- Status ---- Latest Published ID')
             print('------------------------')
             for file in tmp:
-                # dic[file['title']] = file['id']
-                print(f"{file['title']} ----- {file['id']}")
+                status = {}  # just to rename the file outputs and deal with exceptions
+                if file['submitted']:
+                    status['submitted'] = 'published'
+                else:
+                    status['submitted'] = 'unpublished'
+                try:
+                    status["latest"] = ''.join([c for c in file['links']['latest'] if c.isdigit()])
+                except:
+                    status["latest_draft"] = 'None'
+                    
+                print(f"{file['title']} ---- {file['id']} ---- {status['submitted']} ---- {status['latest_draft']}")
         else:
             print(' ** need to setup ~/.zenodo_token file ** ')
-
-        # print('Project Name ---- ID')
-        # print('------------------------')
-        # for key, val in dic.items():
-        #    print(f"{key} ---- {val}")
-        # return dic
 
     @property
     def list_files(self):
@@ -410,6 +413,8 @@ class Client(object):
                         title=None,
                         upload_type=None,
                         description=None,
+                        creator=None,
+                        **kwargs
                         ):
         """change projects metadata
 
@@ -425,6 +430,7 @@ class Client(object):
             title (str): new title of project
             upload_type (str): new upload type
             description (str): new description
+            **kwargs: dictionary to update default metadata
 
         Returns:
             dict: dictionary with new metadata
@@ -434,14 +440,20 @@ class Client(object):
 
         if description is None:
             description = "description goes here"
+        
+        if creator is None:
+            creator = "creator goes here"
 
         data = {
             "metadata": {
                 "title": f"{title}",
                 "upload_type": f"{upload_type}",
                 "description": f"{description}",
+                "creators": [{"name": f"{creator}"}]
             }
         }
+        # update metadata with a new metadata dictionary
+        data.update(kwargs) 
 
         r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
                          auth=self._bearer_auth,
@@ -451,7 +463,7 @@ class Client(object):
         if r.ok:
             return r.json()
         else:
-            return None
+            return r.raise_for_status()
 
     def upload_file(self, file_path=None, publish=False):
         """upload a file to a project
