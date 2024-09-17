@@ -403,9 +403,11 @@ class Client(object):
                 self.title = project_list[0]['title']
                 self.bucket = self._get_bucket_by_id(dep_id)
                 self.deposition_id = dep_id
+            else:
+                print(f' ** Deposition ID: {dep_id} does not exist in your projects  ** ')
         else:
-            print(f' ** Deposition ID: {dep_id} does not exist in your projects  ** ')
-
+            print(f' ** You do not have any project  ** ')
+    
     def change_metadata(self, dep_id=None,
                         title=None,
                         upload_type=None,
