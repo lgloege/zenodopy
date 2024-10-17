@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "title": "my demo data",
+    "upload_type": "other",
+    "description": "",
+    "version": "0.9.4",
+    "access_right": "open",
+    "license": "Apache-2.0",
+    "keywords": ["zenodo", "github", "git"],
+    "publication_date":"",
+    "creators": [
+      {
+        "name": "Jhon, Doe",
+        "orcid": "0000-0003-2584-3576"
+      }
+    ]
+  }
+}
