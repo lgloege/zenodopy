@@ -6,6 +6,8 @@ import requests
 import warnings
 import tarfile
 import zipfile
+from datetime import datetime
+import time
 
 
 def validate_url(url):
@@ -351,7 +353,9 @@ class Client(object):
             # except UserWarning:
             # warnings.warn("The object is not pointing to a project. Either create a project or explicity set the project'", UserWarning)
 
-    def create_project(self, title=None, upload_type=None, description=None):
+    def create_project(
+        self, title=None, upload_type=None, metadata_json=None, description=None
+    ):
         """Creates a new project
 
         After a project is creates the zenodopy object
@@ -366,30 +370,24 @@ class Client(object):
             description (str, optional): new description
         """
 
-        if upload_type is None:
-            upload_types = self._get_upload_types()
-            warnings.warn(f"upload_type not set, so defaulted to 'other', possible choices include {upload_types}",
-                          UserWarning)
-            upload_type = 'other'
-
         # get request, returns our response
-        r = requests.post(f"{self._endpoint}/deposit/depositions",
-                          auth=self._bearer_auth,
-                          data=json.dumps({}),
-                          headers={'Content-Type': 'application/json'})
+        r = requests.post(
+            f"{self._endpoint}/deposit/depositions",
+            auth=self._bearer_auth,
+            data=json.dumps({}),
+            headers={"Content-Type": "application/json"},
+        )
 
         if r.ok:
-            deposition_id = r.json()['id']
 
-            self.change_metadata(dep_id=deposition_id,
-                                 title=title,
-                                 upload_type=upload_type,
-                                 description=description,
-                                 )
-
-            self.deposition_id = r.json()['id']
-            self.bucket = r.json()['links']['bucket']
+            self.deposition_id = r.json()["id"]
+            self.bucket = r.json()["links"]["bucket"]
             self.title = title
+
+            self.change_metadata(
+                json_file_path=metadata_json,
+            )
+
         else:
             print("** Project not created, something went wrong. Check that your ACCESS_TOKEN is in ~/.zenodo_token ")
 
@@ -398,21 +396,30 @@ class Client(object):
         projects = self._get_depositions()
 
         if projects is not None:
-            project_list = [d for d in projects if d['id'] == int(dep_id)]
+            project_list = [
+                d
+                for d in projects
+                if self._check_parent_doi(dep_id=dep_id, project_obj=d)
+            ]
             if len(project_list) > 0:
-                self.title = project_list[0]['title']
-                self.bucket = self._get_bucket_by_id(dep_id)
-                self.deposition_id = dep_id
+                self.title = project_list[0]["title"]
+                self.bucket = self._get_bucket_by_id(project_list[0]["id"])
+                print(self.deposition_id)
+                self.deposition_id = project_list[0]["id"]
+                print(self.deposition_id)
+
         else:
             print(f' ** Deposition ID: {dep_id} does not exist in your projects  ** ')
 
-    def change_metadata(self, dep_id=None,
-                        title=None,
-                        upload_type=None,
-                        description=None,
-                        creator=None,
-                        **kwargs
-                        ):
+    def _check_parent_doi(self, dep_id, project_obj):
+        if project_obj["id"] == int(dep_id):
+            return True
+        concept_doi = project_obj.get("conceptdoi", None)
+        if concept_doi != None:
+            return int(dep_id) == int(concept_doi.split(".")[-1])
+        return False
+
+    def change_metadata(self, json_file_path=None):
         """change projects metadata
 
         ** warning **
@@ -432,30 +439,35 @@ class Client(object):
         Returns:
             dict: dictionary with new metadata
         """
-        if upload_type is None:
-            upload_type = 'other'
 
-        if description is None:
-            description = "description goes here"
-        
-        if creator is None:
-            creator = "creator goes here"
+        if json_file_path is None:
+            print("You need to supply a path")
 
-        data = {
-            "metadata": {
-                "title": f"{title}",
-                "upload_type": f"{upload_type}",
-                "description": f"{description}",
-                "creators": [{"name": f"{creator}"}]
-            }
-        }
-        # update metadata with a new metadata dictionary
-        data.update(kwargs) 
+        if not Path(os.path.expanduser(json_file_path)).exists():
+            print(
+                f"{json_file_path} does not exist. Please check you entered the correct path"
+            )
 
-        r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
-                         auth=self._bearer_auth,
-                         data=json.dumps(data),
-                         headers={'Content-Type': 'application/json'})
+        if json_file_path:
+            with open(json_file_path, "rb") as json_file:
+                file_data = json.load(json_file)
+
+        # if upload_type is None:
+        #     upload_types = self._get_upload_types()
+        #     warnings.warn(
+        #         f"upload_type not set, so defaulted to 'other', possible choices include {upload_types}",
+        #         UserWarning,
+        #     )
+        #     upload_type = "other"
+
+        file_data["metadata"]["publication_date"] = datetime.now().strftime("%Y-%m-%d")
+
+        r = requests.put(
+            f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
+            auth=self._bearer_auth,
+            data=json.dumps(file_data),
+            headers={"Content-Type": "application/json"},
+        )
 
         if r.ok:
             return r.json()
@@ -610,7 +622,7 @@ class Client(object):
         # remove tar file after uploading it
         os.remove(output_file)
 
-    def update(self, source=None, output_file=None, publish=False):
+    def update(self, source=None, output_file=None, metadata_json=None, publish=False):
         """update an existed record
 
         Args:
@@ -626,8 +638,15 @@ class Client(object):
 
         # parse current project to the draft deposition
         new_dep_id = r.json()['links']['latest_draft'].split('/')[-1]
+        
+        # adding this to let new id propogate in the backend 
+        time.sleep(2)
+        
         self.set_project(new_dep_id)
 
+        time.sleep(5)
+
+        self.change_metadata(json_file_path=metadata_json)
         # invoke upload funcions
         if not source:
             print("You need to supply a path")
@@ -766,8 +785,10 @@ class Client(object):
         print('')
         # if input("are you sure you want to delete this project? (y/n)") == "y":
         # delete requests, we are deleting the resource at the specified URL
-        r = requests.delete(f'{self._endpoint}/deposit/depositions/{dep_id}',
-                            auth=self._bearer_auth)
+        r = requests.delete(
+            f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
+            auth=self._bearer_auth,
+        )
         # response status
         print(r.status_code)
 
