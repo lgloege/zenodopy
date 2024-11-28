@@ -448,10 +448,10 @@ class Client(object):
         """
 
         if json_file_path is None:
-            print("You need to supply a path")
+            raise ValueError("You need to supply a path")
 
         if not Path(os.path.expanduser(json_file_path)).exists():
-            print(
+            raise ValueError(
                 f"{json_file_path} does not exist. Please check you entered the correct path"
             )
 

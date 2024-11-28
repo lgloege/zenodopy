@@ -26,7 +26,7 @@ jobs:
         python-version: 3.12
 
     - name: install req
-      run: pip install git+https://github.com/drifter089/zenodopy.git@update_Patch#egg=zenodopy
+      run: pip install git+https://github.com/drifter089/zenodopy.git@basic_test#egg=zenodopy
 
     - name: Update Zenodo Deposition
       run: |
