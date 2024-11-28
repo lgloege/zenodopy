@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 import argparse
 import zenodopy
-from zenodopy import ZenodoMetadata
-import parse
 
 def parse_metadata_from_json(json_file_path: Path) -> zenodopy.ZenodoMetadata:
     """Parse metadata from a JSON file into a ZenodoMetadata object."""
@@ -19,7 +17,8 @@ def parse_metadata_from_json(json_file_path: Path) -> zenodopy.ZenodoMetadata:
         data = json.load(json_file)
     
     metadata_dict = data.get("metadata", {})
-    return ZenodoMetadata(**metadata_dict)
+    return zenodopy.ZenodoMetadata(**metadata_dict)
+
 
 def main():
     # Set up argument parsing
@@ -41,19 +40,11 @@ def main():
     upload_dir = Path(args.upload_dir)
 
     print("Version Tag:", version_tag)
-
-    def prepare_metadata(file_path, new_version):
-        with open(file_path, "r") as file:
-            zenodo_data = json.load(file)
-
-        zenodo_data["metadata"]["version"] = new_version
-
-        with open(file_path, "w") as file:
-            json.dump(zenodo_data, file, indent=2)
-
-    # Prepare the metadata file with the new version tag
-    prepare_metadata(zenodo_metadata_file, version_tag)
-
+    
+    # Parse and update metadata with new version tag
+    metadata = parse_metadata_from_json(zenodo_metadata_file)
+    metadata.version = version_tag
+    
     max_retries = 5
 
     for attempt in range(1, max_retries + 1):
@@ -68,7 +59,7 @@ def main():
             zeno.update(
                 source=str(upload_dir),
                 publish=True,
-                metadata_json=str(zenodo_metadata_file),
+                metadata_json=metadata,
             )
             print("Update succeeded.")
             break
