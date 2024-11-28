@@ -363,7 +363,7 @@ class Client(object):
             # warnings.warn("The object is not pointing to a project. Either create a project or explicity set the project'", UserWarning)
 
     def create_project(
-        self, title=None, upload_type=None, metadata_json=None, description=None
+        self, title=None, metadata_json=None,
     ):
         """Creates a new project
 
@@ -375,8 +375,7 @@ class Client(object):
 
         Args:
             title (str): new title of project
-            upload_type (str, optional): new upload type
-            description (str, optional): new description
+            metadata_json (str): path to json file with metadata
         """
 
         # get request, returns our response
