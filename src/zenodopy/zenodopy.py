@@ -8,7 +8,8 @@ import tarfile
 import zipfile
 from datetime import datetime
 import time
-
+from dataclasses import dataclass, field
+from typing import Optional, List
 
 def validate_url(url):
     """validates if URL is formatted correctly
@@ -49,7 +50,19 @@ def make_zipfile(path, ziph):
             ziph.write(os.path.join(root, file),
                        os.path.relpath(os.path.join(root, file),
                                        os.path.join(path, '..')))
-
+            
+@dataclass
+class ZenodoMetadata:
+    title: str
+    upload_type: str = "other"
+    description: Optional[str] = None
+    publication_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    version: str = "0.1.0"
+    access_right: str = "open"
+    license: str = "Apache-2.0"
+    keywords: List[str] = field(default_factory=lambda: ["zenodo", "github", "git"])
+    creators: List[dict] = field(default_factory=lambda: [{"name": "Jhon, Doe", "orcid": "0000-0003-2584-3576"}])
+    
 
 class BearerAuth(requests.auth.AuthBase):
     """Bearer Authentication"""
@@ -363,7 +376,7 @@ class Client(object):
             # warnings.warn("The object is not pointing to a project. Either create a project or explicity set the project'", UserWarning)
 
     def create_project(
-        self, title=None, metadata_json=None,
+        self, metadata:ZenodoMetadata,
     ):
         """Creates a new project
 
@@ -391,9 +404,9 @@ class Client(object):
             self.deposition_id = r.json()["id"]
             self.bucket = r.json()["links"]["bucket"]
             self.title = title
-
+            
             self.change_metadata(
-                json_file_path=metadata_json,
+                metadata=metadata,
             )
 
         else:
@@ -425,38 +438,31 @@ class Client(object):
             return int(dep_id) == int(concept_doi.split(".")[-1])
         return False
 
-    def change_metadata(self, json_file_path=None):
-        """change projects metadata
+    def change_metadata(self, metadata: ZenodoMetadata):
+        #  """Change project's metadata.
+        # Args:
+        #     metadata (ZenodoMetadata): The metadata to update.
+        # Returns:
+        #     dict: Dictionary with the updated metadata.
+        # """
+        metadata.publication_date = datetime.now().strftime("%Y-%m-%d")
 
-        ** warning **
-        This changes everything. If nothing is supplied then
-        uses default values are used.
+        data = {
+        "metadata": metadata.__dict__
+        }
 
-        For example. If you do not supply an upload_type
-        then it will default to "other"
 
-        Args:
-            dep_id (str): deposition to change
-            title (str): new title of project
-            upload_type (str): new upload type
-            description (str): new description
-            **kwargs: dictionary to update default metadata
+        # if json_file_path is None:
+        #     raise ValueError("You need to supply a path")
 
-        Returns:
-            dict: dictionary with new metadata
-        """
+        # if not Path(os.path.expanduser(json_file_path)).exists():
+        #     raise ValueError(
+        #         f"{json_file_path} does not exist. Please check you entered the correct path"
+        #     )
 
-        if json_file_path is None:
-            raise ValueError("You need to supply a path")
-
-        if not Path(os.path.expanduser(json_file_path)).exists():
-            raise ValueError(
-                f"{json_file_path} does not exist. Please check you entered the correct path"
-            )
-
-        if json_file_path:
-            with open(json_file_path, "rb") as json_file:
-                file_data = json.load(json_file)
+        # if json_file_path:
+        #     with open(json_file_path, "rb") as json_file:
+        #         file_data = json.load(json_file)
 
         # if upload_type is None:
         #     upload_types = self._get_upload_types()
@@ -466,12 +472,12 @@ class Client(object):
         #     )
         #     upload_type = "other"
 
-        file_data["metadata"]["publication_date"] = datetime.now().strftime("%Y-%m-%d")
+        # file_data["metadata"]["publication_date"] = datetime.now().strftime("%Y-%m-%d")
 
         r = requests.put(
             f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
             auth=self._bearer_auth,
-            data=json.dumps(file_data),
+            data=json.dumps(data),
             headers={"Content-Type": "application/json"},
         )
 
@@ -628,7 +634,7 @@ class Client(object):
         # remove tar file after uploading it
         os.remove(output_file)
 
-    def update(self, source=None, output_file=None, metadata_json=None, publish=False):
+    def update(self, metadata:ZenodoMetadata, source=None, output_file=None, publish=False):
         """update an existed record
 
         Args:
@@ -652,7 +658,7 @@ class Client(object):
 
         time.sleep(5)
 
-        self.change_metadata(json_file_path=metadata_json)
+        self.change_metadata(metadata=metadata)
         # invoke upload funcions
         if not source:
             print("You need to supply a path")
