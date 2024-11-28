@@ -639,7 +639,7 @@ class Client(object):
             publish (bool): whether implemente publish action or not, argument for `upload_file`
         """
         # create a draft deposition
-        url_action = self._get_depositions_by_id(self.deposition_id)['links']['newversion']
+        url_action = self._get_depositions_by_id()['links']['newversion']
         r = requests.post(url_action, auth=self._bearer_auth)
         r.raise_for_status()
 
@@ -674,7 +674,7 @@ class Client(object):
     def publish(self):
         """ publish a record
         """
-        url_action = self._get_depositions_by_id(self.deposition_id)['links']['publish']
+        url_action = self._get_depositions_by_id()['links']['publish']
         r = requests.post(url_action, auth=self._bearer_auth)
         r.raise_for_status()
         return r
@@ -766,7 +766,7 @@ class Client(object):
             str: the latest record id or 'None' if not found
         """
         try:
-            record = self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
+            record = self._get_depositions_by_id()['links']['latest'].split('/')[-1]
         except:
             record = 'None'
         return record
