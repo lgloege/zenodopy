@@ -439,40 +439,27 @@ class Client(object):
         return False
 
     def change_metadata(self, metadata: ZenodoMetadata):
-        #  """Change project's metadata.
-        # Args:
-        #     metadata (ZenodoMetadata): The metadata to update.
-        # Returns:
-        #     dict: Dictionary with the updated metadata.
-        # """
+        """
+        Change project's metadata.
+
+        Args:
+            metadata (ZenodoMetadata): The metadata to update.
+
+        Returns:
+            dict: Dictionary with the updated metadata if the request is successful.
+                  Raises an error if the request fails.
+
+        This function updates the project's metadata on Zenodo. 
+        It sets the `publication_date` to the current date and prepares the metadata for the API request.
+        The metadata is sent as a JSON payload to the Zenodo API endpoint using a PUT request.
+        If the request is successful, it returns the updated metadata as a dictionary.
+        If the request fails, it raises an error with the status of the failed request.
+        """
         metadata.publication_date = datetime.now().strftime("%Y-%m-%d")
 
         data = {
         "metadata": metadata.__dict__
         }
-
-
-        # if json_file_path is None:
-        #     raise ValueError("You need to supply a path")
-
-        # if not Path(os.path.expanduser(json_file_path)).exists():
-        #     raise ValueError(
-        #         f"{json_file_path} does not exist. Please check you entered the correct path"
-        #     )
-
-        # if json_file_path:
-        #     with open(json_file_path, "rb") as json_file:
-        #         file_data = json.load(json_file)
-
-        # if upload_type is None:
-        #     upload_types = self._get_upload_types()
-        #     warnings.warn(
-        #         f"upload_type not set, so defaulted to 'other', possible choices include {upload_types}",
-        #         UserWarning,
-        #     )
-        #     upload_type = "other"
-
-        # file_data["metadata"]["publication_date"] = datetime.now().strftime("%Y-%m-%d")
 
         r = requests.put(
             f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
