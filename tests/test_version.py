@@ -59,7 +59,7 @@ def main():
             zeno.update(
                 source=str(upload_dir),
                 publish=True,
-                metadata_json=metadata,
+                metadata=metadata,
             )
             print("Update succeeded.")
             break
