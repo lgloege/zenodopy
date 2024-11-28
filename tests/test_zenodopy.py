@@ -1,4 +1,18 @@
 import zenodopy as zen
+"""
+This module contains tests for the zenodopy library using pytest.
+Functions:
+    test_client: Tests the initialization of the zen.Client object with and without a token.
+    test_read_config: Tests the _read_config method of the zen.Client object to ensure it raises a TypeError.
+    test_get_baseurl: Tests the _endpoint attribute of the zen.Client object for both sandbox and production environments.
+    test_get_depositions: Tests the _get_depositions, _get_depositions_by_id, and _get_depositions_files methods of the zen.Client object.
+    test_get_bucket: Tests the _get_bucket_by_id method of the zen.Client object.
+    test_get_projects_and_files: Tests the list_projects and list_files properties of the zen.Client object.
+Note:
+    The update and change_metadata functions have been updated to add new versions to existing depositions. 
+    This functionality is being tested in test_version. We will bring back individual tests once these changes 
+    have been merged upstream to keep the changes incremental.
+"""
 import pytest
 
 # use this when using pytest
