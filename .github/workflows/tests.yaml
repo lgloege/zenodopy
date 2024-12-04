@@ -31,4 +31,5 @@ jobs:
       - name: Run pytest
         env:
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          DEPOSITION_ID: ${{ secrets.DEPOSITION_ID }}
         run: pytest tests/test_zenodopy.py -v

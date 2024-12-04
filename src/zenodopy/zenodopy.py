@@ -62,6 +62,20 @@ class ZenodoMetadata:
     license: str = "Apache-2.0"
     keywords: List[str] = field(default_factory=lambda: ["zenodo", "github", "git"])
     creators: List[dict] = field(default_factory=lambda: [{"name": "Jhon, Doe", "orcid": "0000-0003-2584-3576"}])
+    @classmethod
+    def parse_metadata_from_json(cls, json_file_path: Path) -> 'ZenodoMetadata':
+        """Parse metadata from a JSON file into a ZenodoMetadata object."""
+        json_file_path = Path(json_file_path).expanduser()
+        if not json_file_path.exists():
+            raise ValueError(
+                f"{json_file_path} does not exist. Please check you entered the correct path."
+            )
+        
+        with json_file_path.open("r") as json_file:
+            data = json.load(json_file)
+        
+        metadata_dict = data.get("metadata", {})
+        return cls(**metadata_dict)
     
 
 class BearerAuth(requests.auth.AuthBase):

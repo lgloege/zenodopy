@@ -5,21 +5,6 @@ from pathlib import Path
 import argparse
 import zenodopy
 
-def parse_metadata_from_json(json_file_path: Path) -> zenodopy.ZenodoMetadata:
-    """Parse metadata from a JSON file into a ZenodoMetadata object."""
-    json_file_path = json_file_path.expanduser()
-    if not json_file_path.exists():
-        raise ValueError(
-            f"{json_file_path} does not exist. Please check you entered the correct path."
-        )
-    
-    with json_file_path.open("r") as json_file:
-        data = json.load(json_file)
-    
-    metadata_dict = data.get("metadata", {})
-    return zenodopy.ZenodoMetadata(**metadata_dict)
-
-
 def main():
     # Set up argument parsing
     parser = argparse.ArgumentParser(description='Update Zenodo deposition with new version and files.')
@@ -42,7 +27,7 @@ def main():
     print("Version Tag:", version_tag)
     
     # Parse and update metadata with new version tag
-    metadata = parse_metadata_from_json(zenodo_metadata_file)
+    metadata = zenodopy.ZenodoMetadata.parse_metadata_from_json(zenodo_metadata_file)
     metadata.version = version_tag
     
     max_retries = 5

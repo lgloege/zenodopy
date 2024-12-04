@@ -18,6 +18,7 @@ import pytest
 # use this when using pytest
 import os
 ACCESS_TOKEN = os.getenv('ZENODO_TOKEN')
+DEPOSITION_ID = os.getenv('DEPOSITION_ID')
 
 # can also hardcode sandbox token using tox locally
 # ACCESS_TOKEN = ''
@@ -67,7 +68,7 @@ def test_get_baseurl():
 
 def test_get_depositions():
     zeno = zen.Client(sandbox=True,token=ACCESS_TOKEN)
-    dep_id=106299
+    dep_id=DEPOSITION_ID
     zeno.set_project(dep_id=dep_id)
     depositions = zeno._get_depositions()
     deposition_by_id = zeno._get_depositions_by_id()
@@ -83,7 +84,7 @@ def test_get_depositions():
 
 def test_get_bucket():
     zeno = zen.Client(sandbox=True,token=ACCESS_TOKEN)
-    dep_id=106299
+    dep_id=DEPOSITION_ID
     zeno.set_project(dep_id=dep_id)
     bucket_link = zeno._get_bucket_by_id()
     assert bucket_link.startswith('https://sandbox.zenodo.org/api/files/')
@@ -93,7 +94,7 @@ def test_get_bucket():
 
 def test_get_projects_and_files():
     zeno = zen.Client(sandbox=True,token=ACCESS_TOKEN)
-    dep_id=106299
+    dep_id=DEPOSITION_ID
     zeno.set_project(dep_id=dep_id)
     _ = zeno.list_projects
     _ = zeno.list_files
