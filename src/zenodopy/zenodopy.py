@@ -417,7 +417,6 @@ class Client(object):
 
             self.deposition_id = r.json()["id"]
             self.bucket = r.json()["links"]["bucket"]
-            self.title = title
             
             self.change_metadata(
                 metadata=metadata,
