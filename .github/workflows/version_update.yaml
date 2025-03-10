@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [main]
+    tags:
+      - 'v*'  
+  pull_request:
+    branches: [main]
+  # Allows you to run this workflow manually from the Actions tab
+  # workflow_dispatch:
+
+jobs:
+
+  UploadToZenodo:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: install req
+      run: pip install git+https://github.com/drifter089/zenodopy.git@basic_test#egg=zenodopy
+
+    - name: Update Zenodo Deposition
+      run: |
+          python tests/test_version.py \
+            --version_tag "${{ github.ref_name }}" \
+            --zenodo_token "${{ secrets.ZENODO_TOKEN }}" \
+            --dep_id "${{ secrets.DEPOSITION_ID }}" \
+            --base_dir "${{ github.workspace }}" \
+            --metadata_file "${{ github.workspace }}/.zenodo.json" \
+            --upload_dir "${{ github.workspace }}/"

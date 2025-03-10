@@ -6,7 +6,10 @@ import requests
 import warnings
 import tarfile
 import zipfile
-
+from datetime import datetime
+import time
+from dataclasses import dataclass, field
+from typing import Optional, List
 
 def validate_url(url):
     """validates if URL is formatted correctly
@@ -47,7 +50,33 @@ def make_zipfile(path, ziph):
             ziph.write(os.path.join(root, file),
                        os.path.relpath(os.path.join(root, file),
                                        os.path.join(path, '..')))
-
+            
+@dataclass
+class ZenodoMetadata:
+    title: str
+    upload_type: str = "other"
+    description: Optional[str] = None
+    publication_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    version: str = "0.1.0"
+    access_right: str = "open"
+    license: str = "Apache-2.0"
+    keywords: List[str] = field(default_factory=lambda: ["zenodo", "github", "git"])
+    creators: List[dict] = field(default_factory=lambda: [{"name": "Jhon, Doe", "orcid": "0000-0003-2584-3576"}])
+    @classmethod
+    def parse_metadata_from_json(cls, json_file_path: Path) -> 'ZenodoMetadata':
+        """Parse metadata from a JSON file into a ZenodoMetadata object."""
+        json_file_path = Path(json_file_path).expanduser()
+        if not json_file_path.exists():
+            raise ValueError(
+                f"{json_file_path} does not exist. Please check you entered the correct path."
+            )
+        
+        with json_file_path.open("r") as json_file:
+            data = json.load(json_file)
+        
+        metadata_dict = data.get("metadata", {})
+        return cls(**metadata_dict)
+    
 
 class BearerAuth(requests.auth.AuthBase):
     """Bearer Authentication"""
@@ -187,7 +216,7 @@ class Client(object):
         else:
             return r.raise_for_status()
 
-    def _get_depositions_by_id(self, dep_id=None):
+    def _get_depositions_by_id(self):
         """gets the deposition based on project id
 
         this provides details on the project, including metadata
@@ -199,10 +228,12 @@ class Client(object):
             dict: dictionary containing project details
         """
         # get request, returns our response
-        # if dep_id is not None:
-        r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
+        if self.deposition_id is not None:
+            r = requests.get(f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
                          auth=self._bearer_auth)
-
+        else:
+            print(' ** no deposition id is set on the project ** ')
+            return None
         if r.ok:
             return r.json()
         else:
@@ -217,8 +248,11 @@ class Client(object):
             dict: dictionary containing project details
         """
         # get request, returns our response
-        r = requests.get(f"{self._endpoint}/deposit/depositions/{self.deposition_id}/files",
+        if self.deposition_id is not None:
+            r = requests.get(f"{self._endpoint}/deposit/depositions/{self.deposition_id}/files",
                          auth=self._bearer_auth)
+        else:
+            print(' ** no deposition id is set on the project ** ')
 
         if r.ok:
             return r.json()
@@ -260,7 +294,11 @@ class Client(object):
             str: the bucket URL to upload files to
         """
         # get request, returns our response
-        r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
+        if dep_id is not None:
+            r = requests.get(f"{self._endpoint}/deposit/depositions/{dep_id}",
+                             auth=self._bearer_auth)
+        else:
+            r = requests.get(f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
                          auth=self._bearer_auth)
 
         if r.ok:
@@ -340,7 +378,7 @@ class Client(object):
         prints filenames to screen
         """
         dep_id = self.deposition_id
-        dep = self._get_depositions_by_id(dep_id)
+        dep = self._get_depositions_by_id()
         if dep is not None:
             print('Files')
             print('------------------------')
@@ -351,7 +389,9 @@ class Client(object):
             # except UserWarning:
             # warnings.warn("The object is not pointing to a project. Either create a project or explicity set the project'", UserWarning)
 
-    def create_project(self, title=None, upload_type=None, description=None):
+    def create_project(
+        self, metadata:ZenodoMetadata,
+    ):
         """Creates a new project
 
         After a project is creates the zenodopy object
@@ -362,34 +402,26 @@ class Client(object):
 
         Args:
             title (str): new title of project
-            upload_type (str, optional): new upload type
-            description (str, optional): new description
+            metadata_json (str): path to json file with metadata
         """
 
-        if upload_type is None:
-            upload_types = self._get_upload_types()
-            warnings.warn(f"upload_type not set, so defaulted to 'other', possible choices include {upload_types}",
-                          UserWarning)
-            upload_type = 'other'
-
         # get request, returns our response
-        r = requests.post(f"{self._endpoint}/deposit/depositions",
-                          auth=self._bearer_auth,
-                          data=json.dumps({}),
-                          headers={'Content-Type': 'application/json'})
+        r = requests.post(
+            f"{self._endpoint}/deposit/depositions",
+            auth=self._bearer_auth,
+            data=json.dumps({}),
+            headers={"Content-Type": "application/json"},
+        )
 
         if r.ok:
-            deposition_id = r.json()['id']
 
-            self.change_metadata(dep_id=deposition_id,
-                                 title=title,
-                                 upload_type=upload_type,
-                                 description=description,
-                                 )
+            self.deposition_id = r.json()["id"]
+            self.bucket = r.json()["links"]["bucket"]
+            
+            self.change_metadata(
+                metadata=metadata,
+            )
 
-            self.deposition_id = r.json()['id']
-            self.bucket = r.json()['links']['bucket']
-            self.title = title
         else:
             print("** Project not created, something went wrong. Check that your ACCESS_TOKEN is in ~/.zenodo_token ")
 
@@ -398,64 +430,56 @@ class Client(object):
         projects = self._get_depositions()
 
         if projects is not None:
-            project_list = [d for d in projects if d['id'] == int(dep_id)]
+            project_list = [
+                d
+                for d in projects
+                if self._check_parent_doi(dep_id=dep_id, project_obj=d)
+            ]
             if len(project_list) > 0:
-                self.title = project_list[0]['title']
-                self.bucket = self._get_bucket_by_id(dep_id)
-                self.deposition_id = dep_id
+                self.title = project_list[0]["title"]
+                self.bucket = self._get_bucket_by_id(project_list[0]["id"])
+                self.deposition_id = project_list[0]["id"]
+
         else:
             print(f' ** Deposition ID: {dep_id} does not exist in your projects  ** ')
 
-    def change_metadata(self, dep_id=None,
-                        title=None,
-                        upload_type=None,
-                        description=None,
-                        creator=None,
-                        **kwargs
-                        ):
-        """change projects metadata
+    def _check_parent_doi(self, dep_id, project_obj):
+        if project_obj["id"] == int(dep_id):
+            return True
+        concept_doi = project_obj.get("conceptdoi", None)
+        if concept_doi != None:
+            return int(dep_id) == int(concept_doi.split(".")[-1])
+        return False
 
-        ** warning **
-        This changes everything. If nothing is supplied then
-        uses default values are used.
-
-        For example. If you do not supply an upload_type
-        then it will default to "other"
+    def change_metadata(self, metadata: ZenodoMetadata):
+        """
+        Change project's metadata.
 
         Args:
-            dep_id (str): deposition to change
-            title (str): new title of project
-            upload_type (str): new upload type
-            description (str): new description
-            **kwargs: dictionary to update default metadata
+            metadata (ZenodoMetadata): The metadata to update.
 
         Returns:
-            dict: dictionary with new metadata
-        """
-        if upload_type is None:
-            upload_type = 'other'
+            dict: Dictionary with the updated metadata if the request is successful.
+                  Raises an error if the request fails.
 
-        if description is None:
-            description = "description goes here"
-        
-        if creator is None:
-            creator = "creator goes here"
+        This function updates the project's metadata on Zenodo. 
+        It sets the `publication_date` to the current date and prepares the metadata for the API request.
+        The metadata is sent as a JSON payload to the Zenodo API endpoint using a PUT request.
+        If the request is successful, it returns the updated metadata as a dictionary.
+        If the request fails, it raises an error with the status of the failed request.
+        """
+        metadata.publication_date = datetime.now().strftime("%Y-%m-%d")
 
         data = {
-            "metadata": {
-                "title": f"{title}",
-                "upload_type": f"{upload_type}",
-                "description": f"{description}",
-                "creators": [{"name": f"{creator}"}]
-            }
+        "metadata": metadata.__dict__
         }
-        # update metadata with a new metadata dictionary
-        data.update(kwargs) 
 
-        r = requests.put(f"{self._endpoint}/deposit/depositions/{dep_id}",
-                         auth=self._bearer_auth,
-                         data=json.dumps(data),
-                         headers={'Content-Type': 'application/json'})
+        r = requests.put(
+            f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
+            auth=self._bearer_auth,
+            data=json.dumps(data),
+            headers={"Content-Type": "application/json"},
+        )
 
         if r.ok:
             return r.json()
@@ -610,7 +634,7 @@ class Client(object):
         # remove tar file after uploading it
         os.remove(output_file)
 
-    def update(self, source=None, output_file=None, publish=False):
+    def update(self, metadata:ZenodoMetadata, source=None, output_file=None, publish=False):
         """update an existed record
 
         Args:
@@ -620,14 +644,21 @@ class Client(object):
             publish (bool): whether implemente publish action or not, argument for `upload_file`
         """
         # create a draft deposition
-        url_action = self._get_depositions_by_id(self.deposition_id)['links']['newversion']
+        url_action = self._get_depositions_by_id()['links']['newversion']
         r = requests.post(url_action, auth=self._bearer_auth)
         r.raise_for_status()
 
         # parse current project to the draft deposition
         new_dep_id = r.json()['links']['latest_draft'].split('/')[-1]
+        
+        # adding this to let new id propogate in the backend 
+        time.sleep(2)
+        
         self.set_project(new_dep_id)
 
+        time.sleep(5)
+
+        self.change_metadata(metadata=metadata)
         # invoke upload funcions
         if not source:
             print("You need to supply a path")
@@ -648,7 +679,7 @@ class Client(object):
     def publish(self):
         """ publish a record
         """
-        url_action = self._get_depositions_by_id(self.deposition_id)['links']['publish']
+        url_action = self._get_depositions_by_id()['links']['publish']
         r = requests.post(url_action, auth=self._bearer_auth)
         r.raise_for_status()
         return r
@@ -740,7 +771,7 @@ class Client(object):
             str: the latest record id or 'None' if not found
         """
         try:
-            record = self._get_depositions_by_id(record_id)['links']['latest'].split('/')[-1]
+            record = self._get_depositions_by_id()['links']['latest'].split('/')[-1]
         except:
             record = 'None'
         return record
@@ -766,8 +797,10 @@ class Client(object):
         print('')
         # if input("are you sure you want to delete this project? (y/n)") == "y":
         # delete requests, we are deleting the resource at the specified URL
-        r = requests.delete(f'{self._endpoint}/deposit/depositions/{dep_id}',
-                            auth=self._bearer_auth)
+        r = requests.delete(
+            f"{self._endpoint}/deposit/depositions/{self.deposition_id}",
+            auth=self._bearer_auth,
+        )
         # response status
         print(r.status_code)
 
